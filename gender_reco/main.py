@@ -3,6 +3,7 @@ from urllib.parse import urlparse
 from lxml import html
 from PIL import Image
 from mtcnn import MTCNN
+from csv import DictWriter
 import matplotlib.pyplot as plt
 import requests
 import os
@@ -23,7 +24,7 @@ def process_links(links):
 def listing_pages(site):
     """ Function to find all relevant pages of a website"""
     resultsss=[]
-    relevant_pages=["job", "about", "career", "jobs", "careers", "join", "team"]
+    relevant_pages=["job", "about", "career", "jobs", "join", "team"]
     response = requests.get(site)
     soup = BeautifulSoup(response.text, 'html.parser')
     for x in soup.find_all("a"):  
@@ -136,34 +137,72 @@ for x in imlist:
         pictures_treated_wo_faces+=1
     draw_faces_quick(filename, faces, pic)
 
+def process_and_predict_amu(file):
+    """ Function to predict the gender of a face"""
+    im = Image.open(file)
+    width, height = im.size
+    if width == height:
+        im = im.resize((200,200), Image.ANTIALIAS)
+    else:
+        if width > height:
+            left = width/2 - height/2
+            right = width/2 + height/2
+            top = 0
+            bottom = height
+            im = im.crop((left,top,right,bottom))
+            im = im.resize((200,200), Image.ANTIALIAS)
+        else:
+            left = 0
+            right = width
+            top = 0
+            bottom = width
+            im = im.crop((left,top,right,bottom))
+            im = im.resize((200,200), Image.ANTIALIAS)
+            
+    ar = np.asarray(im)
+    ar = ar.astype('float32')
+    # ar /= 255.0
+    ar = ar.reshape(-1, 200, 200, 3)
+    
+    # age = agemodel.predict(ar)
+    # gender = np.round(genmodel.predict(ar))
+    gender = np.round(model.predict(ar))
+    if gender == 0:
+        gender = 'male'
+    elif gender == 1:
+        gender = 'female'
+        
+    print('Gender:', gender)
+    # plt.imshow(im)
+    return im.resize((300,300), Image.ANTIALIAS)
 
 
-    directo_list=list(filter(os.path.isdir, [os.path.join(base, f) for f in os.listdir(base)]))    
+directo_list=list(filter(os.path.isdir, [os.path.join(base, f) for f in os.listdir(base)]))    
 
-    for x in directo_list:
-        directory_processed+=1
-    for v in os.listdir(x):    
-        if ".jpg" in v:
+for x in directo_list:
+    directory_processed+=1
+for v in os.listdir(x):    
+    if ".jpg" in v:
         filepic=x+"/"+v
         ar=process_and_predict(filepic)
         gender = np.round(genmodel.predict(ar))    
-        if gender == 0:
-            male+=1
-        elif gender == 1:
-            female+=1
-    
-    summary["Site"]=direc
-    summary["pictures_treated"]=pictures_treated
-    summary["directory_processed"]=directory_processed
-    summary["faces_num"]=sum(faces_num)
-    summary["pictures_treated_wo_faces"]=pictures_treated_wo_faces
-    summary["male"]=male
-    summary["female"]=female
-    summary["picture_w_faces"]=picture_w_faces
-    if picture_w_faces !=0:
-        summary["woman_gender_ratio"]=(female/picture_w_faces)/(male/picture_w_faces)
-    else: 
-        summary["woman_gender_ratio"]="NaN"
+    if gender == 0:
+        male+=1
+    elif gender == 1:
+        female+=1
+
+summary["Site"]=direc
+summary["pictures_treated"]=pictures_treated
+summary["directory_processed"]=directory_processed
+summary["faces_num"]=sum(faces_num)
+summary["pictures_treated_wo_faces"]=pictures_treated_wo_faces
+summary["male"]=male
+summary["female"]=female
+summary["picture_w_faces"]=picture_w_faces
+if picture_w_faces !=0:
+    summary["woman_gender_ratio"]=(female/picture_w_faces)/(male/picture_w_faces)
+else: 
+    summary["woman_gender_ratio"]="NaN"
 summary={}
     if os.path.isfile(file_name):
         with open(file_name, 'a', newline='') as write_obj:

@@ -7,3 +7,7 @@
 **/__pycache__/
 .env
 *.Identifier
+*.jpg
+*.png
+*.svg
+*.gif
